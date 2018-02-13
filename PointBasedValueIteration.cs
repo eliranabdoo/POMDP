@@ -16,6 +16,7 @@ namespace POMDP
         {
             m_dDomain = d;
             m_lVectors = new List<AlphaVector>();
+            m_lVectors.Add(new AlphaVector()); //Adding the null plan alpha vector
             /**AlphaVector av = new AlphaVector();
             IEnumerator<Action> eA = m_dDomain.Actions.GetEnumerator();
             eA.MoveNext();
@@ -109,12 +110,6 @@ namespace POMDP
         {
             AlphaVector discounted_sum = new AlphaVector(action);
 
-            AlphaVector defaultVector = new AlphaVector();
-            /**foreach (State s in m_dDomain.States)
-                defaultVector[s] = s.Reward(action)*bs[s];**/
-
-
-
             foreach (Observation obs in m_dDomain.Observations)
             {
                 AlphaVector cur_alpha_ao = null;
@@ -125,7 +120,7 @@ namespace POMDP
 
                 foreach (AlphaVector av in m_lVectors)
                 {
-                    cur_alpha_ao = computeAlphaAO(av, action, obs, bs);
+                    cur_alpha_ao = computeAlphaAO(av, action, obs);
                     cur_val = cur_alpha_ao.InnerProduct(bs);
                     if (cur_val > best_val) {
                         best_alpha_ao = cur_alpha_ao;
@@ -142,19 +137,16 @@ namespace POMDP
 
             return discounted_sum + rA;
         }
-
-        private AlphaVector computeAlphaAO(AlphaVector alpha, Action a, Observation o, BeliefState bs)
-        { //Seems as if it should not be dependent of the belief state , so need fixing BARAK
+        
+        private AlphaVector computeAlphaAO(AlphaVector alpha, Action a, Observation o)
+        {
             AlphaVector res = new AlphaVector();
-            foreach (KeyValuePair<State, double> sv in bs.Beliefs(0))
+            foreach (State s in m_dDomain.States)
             {
-                if (sv.Value > 0)
-                {
-                    double accumulated_sum = 0;
-                    foreach (State succ in sv.Key.Successors(a))
-                        accumulated_sum += (alpha[succ] * succ.ObservationProbability(a, o)) * sv.Key.TransitionProbability(a, succ);
-                    res[sv.Key] = accumulated_sum;
-                }
+                double accumulated_sum = 0;
+                foreach (State succ in s.Successors(a))
+                    accumulated_sum += (alpha[succ] * succ.ObservationProbability(a, o)) * s.TransitionProbability(a, succ);
+                res[s] = accumulated_sum;
             }
             return res;
         }
@@ -210,7 +202,29 @@ namespace POMDP
 
         public void PointBasedVI(int cBeliefs, int cMaxIterations)
         {
+
             HashSet<BeliefState> BeliefStates = generateInitialBS(cBeliefs); // B
+
+            ////PUT IN DIFFERENT FUNCTION THE V0 INIT
+            AlphaVector V0 = new AlphaVector();
+            double minReward = Double.PositiveInfinity;
+            foreach(State s in m_dDomain.States)
+            {
+                foreach(Action a in m_dDomain.Actions)
+                {
+                    if (minReward > s.Reward(a))
+                        minReward = s.Reward(a);
+                }
+            }
+            double defaultVal = (1 / (1 - m_dDomain.DiscountFactor)) * minReward; //best practice
+            foreach (State s in m_dDomain.States)
+            {
+                V0[s] = defaultVal;
+            }
+
+            m_lVectors = new List<AlphaVector>();
+            m_lVectors.Add(V0);
+
             const double epsilon = 0.1;
             List<AlphaVector> curAlphaSet; //V'
             int iterationsLeft = cMaxIterations;
@@ -218,40 +232,51 @@ namespace POMDP
             while (iterationsLeft > 0)
             {
                 curAlphaSet = new List<AlphaVector>();
-                HashSet<BeliefState> improvableBeliefStates = BeliefStates; // B'
+                HashSet<BeliefState> improvableBeliefStates= new HashSet<BeliefState>(BeliefStates); // B'
 
                 while (improvableBeliefStates.Count() > 0)
                 {
-                    int ri = RandomGenerator.Next(improvableBeliefStates.Count());
+                    Console.WriteLine("Improvable belief states left");
+                    Console.WriteLine(improvableBeliefStates.Count());
+
+                    //int ri = RandomGenerator.Next(improvableBeliefStates.Count());
                     HashSet<BeliefState>.Enumerator e = improvableBeliefStates.GetEnumerator();
-                    for (int i=0; i<ri; i++)
-                        e.MoveNext();
+                    e.MoveNext();
                     BeliefState B = e.Current;
+
                     AlphaVector alpha = backup(B);
-                    AlphaVector alpha_b;
-                    AlphaVector alpha_argmax = null;
-                    double prevValue = ValueOf(B, m_lVectors,out alpha_argmax);
+                    AlphaVector alpha_to_add;
+
+                    AlphaVector prev_alpha_argmax = null;
+                    double prevValue = ValueOf(B, m_lVectors,out prev_alpha_argmax);
                     
-                    if (alpha.InnerProduct(B) >= prevValue) // alpha is dominating
+                    if (alpha.InnerProduct(B) >= prevValue) // alpha is dominating, remove all belief states that are improved
                     {
-                        HashSet<BeliefState> temp_beliefStates = new HashSet<BeliefState>();
+                        HashSet<BeliefState> beliefStatesToRemove = new HashSet<BeliefState>();
                         foreach (BeliefState b_prime in improvableBeliefStates)
                         {
-                            if (alpha.InnerProduct(b_prime) < prevValue) // Keep only belief states which are not improved (prehaps left operand should be value for all V'?)
-                                temp_beliefStates.Add(b_prime);
+                            if (alpha.InnerProduct(b_prime) >= prevValue) // Keep only belief states which are not improved (prehaps left operand should be value for all V'?)
+                                beliefStatesToRemove.Add(b_prime);
                         }
-                        improvableBeliefStates = temp_beliefStates;
-                        alpha_b = alpha;
+                        foreach (BeliefState b_to_remove in beliefStatesToRemove)
+                            improvableBeliefStates.Remove(b_to_remove);
+
+                        alpha_to_add = alpha;
                     }
                     else
                     {
                         improvableBeliefStates.Remove(B);
-                        alpha_b = alpha_argmax;
+                        alpha_to_add = prev_alpha_argmax;
                     }
-                    curAlphaSet.Add(alpha_b); //We either add the backedup alpha, or the best possible from V. Perhaps needs to be changed to SET
+                    curAlphaSet.Add(alpha_to_add); //We either add the backedup alpha, or the best possible from V. Perhaps needs to be changed to SET
                 }
 
-                if (this.m_lVectors.Count != 0 && differenceValue(m_lVectors, curAlphaSet, BeliefStates) < epsilon)
+                double diff = differenceValue(m_lVectors, curAlphaSet, BeliefStates);
+                Console.WriteLine("Diff in current PERSUS iteration is:");
+
+                Console.WriteLine(diff);
+
+                if ( diff < epsilon)
                     break;
                 m_lVectors = curAlphaSet;
                 iterationsLeft--;
@@ -263,7 +288,7 @@ namespace POMDP
             double maxDiff = Double.NegativeInfinity;
             foreach(BeliefState b in beliefStates)
             {
-                double curDiff = calculateMaxAlphaVector(b, s1).InnerProduct(b) - calculateMaxAlphaVector(b, s2).InnerProduct(b); 
+                double curDiff = Math.Abs(calculateMaxAlphaVector(b, s1).InnerProduct(b) - calculateMaxAlphaVector(b, s2).InnerProduct(b)); 
                 if (curDiff > maxDiff)
                     maxDiff = curDiff;
             } 

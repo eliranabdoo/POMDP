@@ -35,10 +35,6 @@ namespace POMDP
 
             Action a = p.GetAction(bs);
             double reward = state.Reward(a);
-
-            Dictionary<State, double> neighborsDistribution = new Dictionary<State, double>();
-            /**foreach (State neighbor in state.Successors(a))
-                neighborsDistribution[neighbor] = state.TransitionProbability(a, neighbor);**/
             State nextState = state.Apply(a);
 
             Observation o = nextState.RandomObservation(a);

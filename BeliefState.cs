@@ -1,11 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Diagnostics;
-using System.Windows.Media;
-using System.Numerics;
-using Accord.Math;
 
 namespace POMDP
 {
@@ -52,7 +48,6 @@ namespace POMDP
             double normalizing_factor = 0;
 
             HashSet<State> reachableStates = new HashSet<State>();
-            Vector<Double> b = new Vector<Double>();  
              
             foreach (KeyValuePair<State, double> entry in m_dBeliefs)
             {
@@ -71,13 +66,6 @@ namespace POMDP
             {
                 double trans_prob = 0;
                 double obs_prob = s_prime.ObservationProbability(a, o); // We Calculate O(o,s',a)*(b\dot\Tr(s',a))
-                /**double expected_trans_prob = 0;
-                foreach (KeyValuePair<State, double> s in m_dBeliefs)
-                {
-                    if (s.Value > 0)
-                        expected_trans_prob += s.Value * s.Key.TransitionProbability(a, s_prime);
-                }**/
-                //trans_prob = obs_prob * expected_trans_prob;
                 trans_prob = bsNext[s_prime];
                 trans_prob *= obs_prob;
                 normalizing_factor += trans_prob;
@@ -147,7 +135,8 @@ namespace POMDP
                 if (dRnd <= 0)
                     return sd.Key;
             }
-            return Beliefs(0).Last<KeyValuePair<State, double>>().Key; // shouldn't get here...
+            Console.WriteLine("Got into a bad line"); // REMOVE
+            return Beliefs(0).Last().Key; // shouldn't get here...
         }
     }
 }
