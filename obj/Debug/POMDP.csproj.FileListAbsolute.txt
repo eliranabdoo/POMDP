@@ -1,0 +1,14 @@
+D:\CS\msc\Semster A\AI\HW3\obj\Debug\POMDP.csprojResolveAssemblyReference.cache
+D:\CS\msc\Semster A\AI\HW3\obj\Debug\POMDP.MazeViewer.resources
+D:\CS\msc\Semster A\AI\HW3\obj\Debug\POMDP.csproj.GenerateResource.Cache
+D:\CS\msc\Semster A\AI\HW3\bin\Debug\MarkovDecisionProcess.exe.config
+D:\CS\msc\Semster A\AI\HW3\bin\Debug\Accord.dll.config
+D:\CS\msc\Semster A\AI\HW3\bin\Debug\MarkovDecisionProcess.exe
+D:\CS\msc\Semster A\AI\HW3\bin\Debug\MarkovDecisionProcess.pdb
+D:\CS\msc\Semster A\AI\HW3\bin\Debug\Accord.dll
+D:\CS\msc\Semster A\AI\HW3\bin\Debug\System.Numerics.Vectors.dll
+D:\CS\msc\Semster A\AI\HW3\bin\Debug\WindowsBase.dll
+D:\CS\msc\Semster A\AI\HW3\bin\Debug\Accord.xml
+D:\CS\msc\Semster A\AI\HW3\bin\Debug\System.Numerics.Vectors.xml
+D:\CS\msc\Semster A\AI\HW3\obj\Debug\MarkovDecisionProcess.exe
+D:\CS\msc\Semster A\AI\HW3\obj\Debug\MarkovDecisionProcess.pdb
