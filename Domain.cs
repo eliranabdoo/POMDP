@@ -39,7 +39,7 @@ namespace POMDP
 
             Observation o = nextState.RandomObservation(a);
 
-            reward += this.DiscountFactor * calcTrialReward(p, stepsLeft--, nextState, bs.Next(a,o));
+            reward += this.DiscountFactor * calcTrialReward(p, stepsLeft-1, nextState, bs.Next(a,o));
             return reward;
         }
 

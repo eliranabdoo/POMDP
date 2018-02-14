@@ -239,11 +239,18 @@ namespace POMDP
                     Console.WriteLine("Improvable belief states left");
                     Console.WriteLine(improvableBeliefStates.Count());
 
-                    //int ri = RandomGenerator.Next(improvableBeliefStates.Count());
+                    int ri = RandomGenerator.Next(improvableBeliefStates.Count());
                     HashSet<BeliefState>.Enumerator e = improvableBeliefStates.GetEnumerator();
-                    e.MoveNext();
+                    for(int i=0; i<ri; i++)
+                        e.MoveNext();
                     BeliefState B = e.Current;
+                    Console.WriteLine("Iterations left: " + iterationsLeft);
+                    Console.WriteLine("improvable bs left: " + improvableBeliefStates.Count());
 
+                    if(improvableBeliefStates.Count() == 431)
+                    {
+                        Console.WriteLine("BLABLA");
+                    }
                     AlphaVector alpha = backup(B);
                     AlphaVector alpha_to_add;
 
@@ -252,6 +259,7 @@ namespace POMDP
                     
                     if (alpha.InnerProduct(B) >= prevValue) // alpha is dominating, remove all belief states that are improved
                     {
+                        Console.WriteLine("Found an improving vec");
                         HashSet<BeliefState> beliefStatesToRemove = new HashSet<BeliefState>();
                         foreach (BeliefState b_prime in improvableBeliefStates)
                         {
