@@ -34,9 +34,10 @@ namespace POMDP
                 return 0;
 
             Action a = p.GetAction(bs);
-            double reward = state.Reward(a);
+            
+            //double reward = state.Reward(a);
             State nextState = state.Apply(a);
-
+            double reward = nextState.Reward(a);
             Observation o = nextState.RandomObservation(a);
 
             reward += this.DiscountFactor * calcTrialReward(p, stepsLeft-1, nextState, bs.Next(a,o));
