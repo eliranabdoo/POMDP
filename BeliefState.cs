@@ -43,12 +43,16 @@ namespace POMDP
 
         public BeliefState Next(Action a, Observation o)
         {
-            BeliefState bsNext = new BeliefState(m_dDomain);
-        
+            BeliefState bsNext = new BeliefState(m_dDomain); //Represents the new belief state b_o_s
+
             double normalizing_factor = 0;
 
             HashSet<State> reachableStates = new HashSet<State>();
-             
+
+            // The neighboring states are the union of all neighboring states 
+            // of states with positive probability on current belief state.
+            // When we calculate the new distribution over states, we just need 
+            // to look on S' such that Tr(S,a,S')>0
             foreach (KeyValuePair<State, double> entry in m_dBeliefs)
             {
                 if (entry.Value > 0)
@@ -56,6 +60,10 @@ namespace POMDP
                     foreach (State s in entry.Key.Successors(a))
                     {
                         reachableStates.Add(s);
+                        // We add a new state possibility to bsNext, we initialize its value 
+                        // to SUM(Tr(entry.key,a,s)) over entries (It is a part of the calculation).
+                        // this loop calculates this sum for every entry, for each possible neighbor of 
+                        // entry.key it adds the appropriate value to the sum by the function AddBelief
                         bsNext.AddBelief(s, entry.Value * entry.Key.TransitionProbability(a, s));
                     }
 
@@ -67,8 +75,11 @@ namespace POMDP
                 double trans_prob = 0;
                 double obs_prob = s_prime.ObservationProbability(a, o); // We Calculate O(o,s',a)*(b\dot\Tr(s',a))
                 trans_prob = bsNext[s_prime];
+                // for each state s_prime trans_prob equals O(s_prime,a,o)*dot(b,Tr(s,a,s_prime))
                 trans_prob *= obs_prob;
+                //The normalizing factor is sum of all values, we divide the vector by this number to make it a distribution
                 normalizing_factor += trans_prob;
+                // Updating the new belief state
                 bsNext[s_prime] = trans_prob;
             }
 
@@ -124,15 +135,23 @@ namespace POMDP
             return dSum;
         }
 
+        /**
+        * Samples a State from the belief state distribution and returns it
+        * 
+        */
         public State sampleState()
         {
+            // We sample a random number in [0,1]
             double dRnd = RandomGenerator.NextDouble();
             double dProb = 0.0;
+            // We keep summing the probabilities until we reach the first state where the sum >= the random number
+            // It is like having a set of disjoint intervals in [0,1] and we random a number, and see its interval 
+            // As the length of the interval is larger (large prob), so the probability we picks a number in this interval.
             foreach (KeyValuePair<State, double> sd in Beliefs(0))
             {
                 dProb = sd.Value;
                 dRnd -= dProb;
-                if (dRnd <= 0)
+                if (dRnd <= 0) // the sum reached dRnd
                     return sd.Key;
             }
             Console.WriteLine("Got into a bad line"); // REMOVE
