@@ -22,15 +22,15 @@ namespace POMDP
             rewardsVectors = new Dictionary<Action, AlphaVector>();
 
 
-        /**AlphaVector av = new AlphaVector();
-        IEnumerator<Action> eA = m_dDomain.Actions.GetEnumerator();
-        eA.MoveNext();
-        Action a = eA.Current;
-        
-        foreach (State s in m_dDomain.States)
-            av[s] = s.Reward(a);
-        m_lVectors.Add(av);**/
-    }
+            /**AlphaVector av = new AlphaVector();
+            IEnumerator<Action> eA = m_dDomain.Actions.GetEnumerator();
+            eA.MoveNext();
+            Action a = eA.Current;
+            
+            foreach (State s in m_dDomain.States)
+                av[s] = s.Reward(a);
+            m_lVectors.Add(av);**/
+        }
 
     public override Action GetAction(BeliefState bs)
         {
@@ -187,26 +187,27 @@ namespace POMDP
          */
         private AlphaVector computeAlphaAO(AlphaVector alpha, Action a, Observation o)
         {
-            AlphaVector res = new AlphaVector();
+            AlphaVector res = new AlphaVector(a);
             //We loop over all states s, for each s we compute alpha_a_o[s]
             foreach (State s in m_dDomain.States)
             {
                 double accumulated_sum = 0;
+                res[s] = 0;
                 //Looping only on successors of s because only for them T(s,a,succ)>0
                 foreach (State succ in s.Successors(a))
-                    accumulated_sum += (alpha[succ] * succ.ObservationProbability(a, o)) * s.TransitionProbability(a, succ);
+                    accumulated_sum += (alpha[succ] * succ.ObservationProbability(a, o) * s.TransitionProbability(a, succ));
                 res[s] = accumulated_sum;
             }
             return res;
         }
 
-        private HashSet<BeliefState> SimulateTrial(Policy p, int cMaxSteps)
+        private List<BeliefState> SimulateTrial(Policy p, int cMaxSteps)
         {
             BeliefState bsCurrent = m_dDomain.InitialBelief, bsNext = null;
             State sCurrent = bsCurrent.sampleState(), sNext = null; //Should be replaced with sampleState
             Action a = null;
             Observation o = null;
-            HashSet<BeliefState> lBeliefs = new HashSet<BeliefState>();
+            List<BeliefState> lBeliefs = new List<BeliefState>();
             while (!m_dDomain.IsGoalState(sCurrent) && lBeliefs.Count < cMaxSteps)
             {
                 a = p.GetAction(bsCurrent);
@@ -220,15 +221,15 @@ namespace POMDP
             return lBeliefs;
         }
 
-        private HashSet<BeliefState> CollectBeliefs(int cBeliefs)
+        private List<BeliefState> CollectBeliefs(int cBeliefs)
         {
             Debug.WriteLine("Started collecting " + cBeliefs + " points");
             RandomPolicy p = new RandomPolicy(m_dDomain);
             int cTrials = 100, cBeliefsPerTrial = cBeliefs / cTrials;
-            HashSet<BeliefState> lBeliefs = new HashSet<BeliefState>();
+            List<BeliefState> lBeliefs = new List<BeliefState>();
             while (lBeliefs.Count < cBeliefs)
             {
-                lBeliefs.UnionWith(SimulateTrial(p, cBeliefsPerTrial));
+                lBeliefs.AddRange(SimulateTrial(p, cBeliefsPerTrial));
             }
             Debug.WriteLine("Collected " + lBeliefs.Count + " points");
             return lBeliefs;
@@ -287,36 +288,36 @@ namespace POMDP
         public void PointBasedVI(int cBeliefs, int cMaxIterations)
         {
             //Generates an initial set containing cBelief belief states
-            HashSet<BeliefState> beliefStates = CollectBeliefs(cBeliefs);
+            List<BeliefState> beliefStates = CollectBeliefs(cBeliefs);
             List<AlphaVector> vTag; //V' 
 
           //  m_lVectors = new List<AlphaVector>();
             //We add an initial alpha vector to the alpha vectors set
           //  m_lVectors.Add(createInitialAlphaVector());
 
-            const double epsilon = 0.8;
+            const double EPSILON = 0.8;
             int iterationsLeft = cMaxIterations;
 
             while (iterationsLeft > 0)
             {
                 vTag = new List<AlphaVector>();
-                HashSet<BeliefState> beliefStatesLeftToImprove= new HashSet<BeliefState>(beliefStates); // B'
+                List<BeliefState> beliefStatesLeftToImprove= new List<BeliefState>(beliefStates); // B'
                 while (beliefStatesLeftToImprove.Count() > 0)
                 { //While there are belief states to improve
-                    Console.WriteLine("Improvable belief states left");
-                    Console.WriteLine(beliefStatesLeftToImprove.Count());
+                    //Console.WriteLine("Improvable belief states left");
+                    //Console.WriteLine(beliefStatesLeftToImprove.Count());
 
                     //selecting a random index of a belief state to improve
                     int ri = RandomGenerator.Next(beliefStatesLeftToImprove.Count());
 
                     //We want to iterate over the belief states set and recieve the ri'th item
-                    HashSet<BeliefState>.Enumerator e = beliefStatesLeftToImprove.GetEnumerator();
+                    List<BeliefState>.Enumerator e = beliefStatesLeftToImprove.GetEnumerator();
                     for(int i=0; i<ri+1; i++) //iterating until the belief state at index ri
                         e.MoveNext();
                     BeliefState sampledBS = e.Current;//samplesBS is a randomly chosen belief state to for improvement
 
-                    Console.WriteLine("Iterations left: " + iterationsLeft);
-                    Console.WriteLine("improvable bs left: " + beliefStatesLeftToImprove.Count());
+                    //Console.WriteLine("Iterations left: " + iterationsLeft);
+                    //Console.WriteLine("Improvable bs left: " + beliefStatesLeftToImprove.Count());
 
                     //We calculate the backup of samplesBS
                     AlphaVector alpha = backup(sampledBS);
@@ -328,18 +329,17 @@ namespace POMDP
                     
                     if (alpha.InnerProduct(sampledBS) >= prevValue) // alpha is dominating, remove all belief states that are improved by it
                     {
-                        Console.WriteLine("Found an improving vec");
-                        HashSet<BeliefState> beliefStatesToRemove = new HashSet<BeliefState>();
+                        //Console.WriteLine("Found an improving vec");
+                        List<BeliefState> beliefStatesToKeep = new List<BeliefState>();
                         foreach (BeliefState b_prime in beliefStatesLeftToImprove)
                         {
                             AlphaVector a = null;
-                            if (alpha.InnerProduct(b_prime) >= ValueOf(b_prime, m_lVectors, out a)) // Keep only belief states which are not improved (prehaps left operand should be value for all V'?)
-                                beliefStatesToRemove.Add(b_prime);
+                            if (alpha.InnerProduct(b_prime) < ValueOf(b_prime, m_lVectors, out a)) // Keep only belief states which are not improved (prehaps left operand should be value for all V'?)
+                                beliefStatesToKeep.Add(b_prime);
                         }
-                        foreach (BeliefState b_to_remove in beliefStatesToRemove)
-                            beliefStatesLeftToImprove.Remove(b_to_remove);
+                        beliefStatesLeftToImprove = beliefStatesToKeep;
                         //In the case alpha is dominating, we add alpha to V' 
-                        alphaToAdd = alpha; 
+                        alphaToAdd = alpha;
                     }
 
                     else
@@ -347,6 +347,7 @@ namespace POMDP
                         beliefStatesLeftToImprove.Remove(sampledBS);
                         alphaToAdd = prevBestAlphaVector;
                     }
+
                     if (!vTag.Contains(alphaToAdd))
                     {
                         vTag.Add(alphaToAdd); //We either add the backedup alpha, or the best possible from V. Perhaps needs to be changed to SET
@@ -356,20 +357,22 @@ namespace POMDP
 
                 //We estimate how the alpha vectors set was changed
                 double diff = estimateDiff(m_lVectors, vTag, beliefStates);
-                Console.WriteLine("Diff in current PERSEUS iteration is:");
+                
 
                 Console.WriteLine(diff);
 
                 //The difference between the current set, and the previous is less than epsilon
                 //We finish the update algorithm
-                if (diff < epsilon)
+                if (diff < EPSILON)
                     break;
+                Console.WriteLine("Diff in current PERSEUS iteration is:");
+                Console.WriteLine("Iterations left {0}", iterationsLeft);
                 m_lVectors = vTag;
                 iterationsLeft--;
             }
         }
 
-        private double estimateDiff(List<AlphaVector> s1, List<AlphaVector> s2, HashSet<BeliefState> beliefStates)
+        private double estimateDiff(List<AlphaVector> s1, List<AlphaVector> s2, List<BeliefState> beliefStates)
         {
             double maxDiff = Double.NegativeInfinity;
             foreach (BeliefState b in beliefStates)
@@ -382,9 +385,9 @@ namespace POMDP
             return maxDiff;
         }
 
-        private HashSet<BeliefState> generateInitialBS(int numToGenerate)
+        private List<BeliefState> generateInitialBS(int numToGenerate)
         {
-            HashSet<BeliefState> res = new HashSet<BeliefState>();
+            List<BeliefState> res = new List<BeliefState>();
             BeliefState curBeliefState = m_dDomain.InitialBelief;
             Action[] actionsArray = m_dDomain.Actions.Cast<Action>().ToArray();
             int numOfActions = actionsArray.Count();
