@@ -48,5 +48,37 @@ namespace POMDP
                 dProb *= (1 - WALL_DETECTION_ACCURACY);
             return dProb;
         }
+
+                public override bool Equals(Object obj)
+        {
+            if (obj == null)
+                return false;
+            else if(GetType() != obj.GetType())
+            {
+                return false;
+            }
+            else
+            {
+                MazeObservation o = (MazeObservation)obj;
+
+                return this.RightWall == o.RightWall && this.BackWall == o.BackWall && this.FrontWall == o.FrontWall && this.LeftWall == o.LeftWall;
+            }
+        }
+
+
+
+        public override int GetHashCode()
+        {
+            int hashValue = 0;
+
+            hashValue += this.RightWall ? 1 : 0;
+            hashValue += this.LeftWall ? 2 : 0;
+            hashValue += this.FrontWall ? 4 : 0;
+            hashValue += this.BackWall ? 16 : 0;
+          
+
+            return hashValue;
+        }
+
     }
 }

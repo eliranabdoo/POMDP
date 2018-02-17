@@ -13,11 +13,14 @@ namespace POMDP
         private Dictionary<AlphaVector, Dictionary<Action, Dictionary<Observation, AlphaVector>>> m_dGCache;
         private Dictionary<KeyValuePair<BeliefState, KeyValuePair<Action, Observation>>, BeliefState> m_dNextBeliefState;
 
+        private Dictionary<Tuple<AlphaVector, Action, Observation>, AlphaVector> m_dAlphaA_O;
+
         private Dictionary<Action, AlphaVector> rewardsVectors;
         public PointBasedValueIteration(Domain d)
         {
             m_dDomain = d;
             m_lVectors = new List<AlphaVector>();
+            m_dAlphaA_O = new Dictionary<Tuple<AlphaVector, Action, Observation>, AlphaVector>();
             m_lVectors.Add(new AlphaVector()); //Adding the null plan alpha vector
             rewardsVectors = new Dictionary<Action, AlphaVector>();
 
@@ -187,6 +190,13 @@ namespace POMDP
          */
         private AlphaVector computeAlphaAO(AlphaVector alpha, Action a, Observation o)
         {
+            Tuple<AlphaVector, Action, Observation> key = new Tuple<AlphaVector, Action, Observation>(alpha, a, o);
+            if (m_dAlphaA_O.ContainsKey(key))
+            {
+                return m_dAlphaA_O[key];
+            }
+            else
+            {
             AlphaVector res = new AlphaVector(a);
             //We loop over all states s, for each s we compute alpha_a_o[s]
             foreach (State s in m_dDomain.States)
@@ -198,7 +208,9 @@ namespace POMDP
                     accumulated_sum += (alpha[succ] * succ.ObservationProbability(a, o) * s.TransitionProbability(a, succ));
                 res[s] = accumulated_sum;
             }
+            m_dAlphaA_O.Add(key,res);
             return res;
+        }
         }
 
         private List<BeliefState> SimulateTrial(Policy p, int cMaxSteps)
