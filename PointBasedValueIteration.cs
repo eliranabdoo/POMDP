@@ -10,91 +10,28 @@ namespace POMDP
     {
         private Domain m_dDomain;
         private List<AlphaVector> m_lVectors;
-        private Dictionary<AlphaVector, Dictionary<Action, Dictionary<Observation, AlphaVector>>> m_dGCache;
-        private Dictionary<KeyValuePair<BeliefState, KeyValuePair<Action, Observation>>, BeliefState> m_dNextBeliefState;
-
+        //private Dictionary<KeyValuePair<BeliefState, KeyValuePair<Action, Observation>>, BeliefState> m_dNextBeliefState;
         private Dictionary<Tuple<AlphaVector, Action, Observation>, AlphaVector> m_dAlphaA_O;
-
         private Dictionary<Action, AlphaVector> rewardsVectors;
+
         public PointBasedValueIteration(Domain d)
         {
             m_dDomain = d;
             m_lVectors = new List<AlphaVector>();
             m_dAlphaA_O = new Dictionary<Tuple<AlphaVector, Action, Observation>, AlphaVector>();
-            m_lVectors.Add(new AlphaVector()); //Adding the null plan alpha vector
+            m_lVectors.Add(createInitialAlphaVector()); //Adding an initial alpha vector
             rewardsVectors = new Dictionary<Action, AlphaVector>();
-
-
-            /**AlphaVector av = new AlphaVector();
-            IEnumerator<Action> eA = m_dDomain.Actions.GetEnumerator();
-            eA.MoveNext();
-            Action a = eA.Current;
-            
-            foreach (State s in m_dDomain.States)
-                av[s] = s.Reward(a);
-            m_lVectors.Add(av);**/
         }
 
-    public override Action GetAction(BeliefState bs)
+        /**
+        * Calculated the best action for bs w.r.t to m_lVectors
+        * Basically translates m_lVectors into a policy 
+        */
+        public override Action GetAction(BeliefState bs)
         {
             AlphaVector avBest = null;
             ValueOf(bs, m_lVectors, out avBest);
             return avBest.Action;
-        }
-
-        //Ronen
-        private AlphaVector alpha_a_o(Action a, Observation o, AlphaVector av)
-        {
-            if (!m_dGCache.ContainsKey(av))
-                m_dGCache[av] = new Dictionary<Action, Dictionary<Observation, AlphaVector>>();
-            if (!m_dGCache[av].ContainsKey(a))
-                m_dGCache[av][a] = new Dictionary<Observation, AlphaVector>();
-            if (m_dGCache[av][a].ContainsKey(o))
-                return m_dGCache[av][a][o];
-            AlphaVector avNew = new AlphaVector(a);
-            foreach (State s in m_dDomain.States)
-            {
-                double dSum = 0.0;
-                foreach (State sTag in m_dDomain.States)
-                {
-                    dSum += sTag.ObservationProbability(a, o) * s.TransitionProbability(a, sTag) * av[sTag];
-
-                }
-                avNew[s] = dSum;
-            }
-            m_dGCache[av][a][o] = avNew;
-            return avNew;
-        }
-
-        //Ronen
-        private AlphaVector alpha_b_a(BeliefState bs, Action a)
-        {
-            AlphaVector avSum = new AlphaVector(a);
-            AlphaVector avGMax = null;
-            double dValue = 0.0, dMaxValue = double.NegativeInfinity;
-            foreach (Observation o in m_dDomain.Observations)
-            {
-                dMaxValue = double.NegativeInfinity;
-                avGMax = null;
-                foreach (AlphaVector avCurrent in m_lVectors)
-                {
-                    AlphaVector avG = alpha_a_o(a, o, avCurrent);
-                    dValue = avG.InnerProduct(bs);
-                    if (dValue > dMaxValue)
-                    {
-                        dMaxValue = dValue;
-                        avGMax = avG;
-                    }
-                }
-                avSum += avGMax;
-            }
-            avSum *= m_dDomain.DiscountFactor;
-            AlphaVector avResult = new AlphaVector(a);
-            foreach (State s in m_dDomain.States)
-            {
-                avResult[s] = avSum[s] + s.Reward(a);
-            }
-            return avResult;
         }
 
         /**
@@ -104,10 +41,8 @@ namespace POMDP
          * dot(b,alpha_a_bs))
          * 
          */
-
         private AlphaVector backup(BeliefState bs)
         {
-            m_dGCache =  new Dictionary<AlphaVector, Dictionary<Action, Dictionary<Observation, AlphaVector>>>();
             AlphaVector avBest = new AlphaVector(), avCurrent = new AlphaVector();
             double dMaxValue = double.NegativeInfinity, dValue = 0.0;
 
@@ -135,7 +70,7 @@ namespace POMDP
             //initializing an alpha vector with action on its root
             AlphaVector discountedRewardVector = new AlphaVector(action);
 
-            //We loop over all observations and alpha vectors for each observation obs, 
+            // We loop over all observations and alpha vectors for each observation obs, 
             // we find the alpha vector maximizing dot(bs,alpha_action_obs) - we will use 
             // these vectors (their sum) in order to calculate alpha_a_b
             foreach (Observation obs in m_dDomain.Observations)
@@ -163,9 +98,7 @@ namespace POMDP
             // Multiplying it with the discount factor
             discountedRewardVector = discountedRewardVector * m_dDomain.DiscountFactor;
 
-            //action's rewards vector, We add it to the sum, and return the result
-
-            AlphaVector rA;
+            AlphaVector rA; //action's rewards vector, We add it to the sum, and return the result
             if (rewardsVectors.ContainsKey(action))
             {
                 rA = rewardsVectors[action];
@@ -178,10 +111,8 @@ namespace POMDP
                 rewardsVectors[action] = rA;
             }
             
-
             return discountedRewardVector + rA;
         }
-
 
         /**
          * Receives alpha vector alpha, action a, and observation o.
@@ -192,31 +123,30 @@ namespace POMDP
         {
             Tuple<AlphaVector, Action, Observation> key = new Tuple<AlphaVector, Action, Observation>(alpha, a, o);
             if (m_dAlphaA_O.ContainsKey(key))
-            {
                 return m_dAlphaA_O[key];
-            }
+
             else
             {
-            AlphaVector res = new AlphaVector(a);
-            //We loop over all states s, for each s we compute alpha_a_o[s]
-            foreach (State s in m_dDomain.States)
-            {
-                double accumulated_sum = 0;
-                res[s] = 0;
-                //Looping only on successors of s because only for them T(s,a,succ)>0
-                foreach (State succ in s.Successors(a))
-                    accumulated_sum += (alpha[succ] * succ.ObservationProbability(a, o) * s.TransitionProbability(a, succ));
-                res[s] = accumulated_sum;
+                AlphaVector res = new AlphaVector(a);
+                //We loop over all states s, for each s we compute alpha_a_o[s]
+                foreach (State s in m_dDomain.States)
+                {
+                    double accumulated_sum = 0;
+                    res[s] = 0;
+                    //Looping only on successors of s because only for them T(s,a,succ)>0
+                    foreach (State succ in s.Successors(a))
+                        accumulated_sum += (alpha[succ] * succ.ObservationProbability(a, o) * s.TransitionProbability(a, succ));
+                    res[s] = accumulated_sum;
+                }
+                m_dAlphaA_O.Add(key, res);
+                return res;
             }
-            m_dAlphaA_O.Add(key,res);
-            return res;
-        }
         }
 
         private List<BeliefState> SimulateTrial(Policy p, int cMaxSteps)
         {
             BeliefState bsCurrent = m_dDomain.InitialBelief, bsNext = null;
-            State sCurrent = bsCurrent.sampleState(), sNext = null; //Should be replaced with sampleState
+            State sCurrent = bsCurrent.sampleState(), sNext = null;
             Action a = null;
             Observation o = null;
             List<BeliefState> lBeliefs = new List<BeliefState>();
@@ -246,6 +176,7 @@ namespace POMDP
             Debug.WriteLine("Collected " + lBeliefs.Count + " points");
             return lBeliefs;
         }
+
         /**
          * Calculates the value of a belief state bs w.r.t a list to alpha vectors.
          * i.e finds the alpha vector alpha that maximizes dot(bs,alpha), returns the value of 
@@ -261,7 +192,7 @@ namespace POMDP
             foreach (AlphaVector av in lVectors)
             {
                 dValue = av.InnerProduct(bs);
-                if (dValue > dMaxValue)//taking the maximum dot product
+                if (dValue > dMaxValue) //taking the maximum dot product
                 {
                     dMaxValue = dValue;
                     avBest = av;
@@ -270,6 +201,9 @@ namespace POMDP
             return dMaxValue;
         }
 
+        /**
+         * Initializes an alpha vector with some best practice presented in the provided article 
+         */
         private AlphaVector createInitialAlphaVector()
         {
             AlphaVector V0 = new AlphaVector();
@@ -303,11 +237,7 @@ namespace POMDP
             List<BeliefState> beliefStates = CollectBeliefs(cBeliefs);
             List<AlphaVector> vTag; //V' 
 
-          //  m_lVectors = new List<AlphaVector>();
-            //We add an initial alpha vector to the alpha vectors set
-          //  m_lVectors.Add(createInitialAlphaVector());
-
-            const double EPSILON = 0.8;
+            //const double EPSILON = 0.1; //The convergence boundry
             int iterationsLeft = cMaxIterations;
 
             while (iterationsLeft > 0)
@@ -346,7 +276,7 @@ namespace POMDP
                         foreach (BeliefState b_prime in beliefStatesLeftToImprove)
                         {
                             AlphaVector a = null;
-                            if (alpha.InnerProduct(b_prime) < ValueOf(b_prime, m_lVectors, out a)) // Keep only belief states which are not improved (prehaps left operand should be value for all V'?)
+                            if (alpha.InnerProduct(b_prime) < ValueOf(b_prime, m_lVectors, out a)) 
                                 beliefStatesToKeep.Add(b_prime);
                         }
                         beliefStatesLeftToImprove = beliefStatesToKeep;
@@ -361,29 +291,29 @@ namespace POMDP
                     }
 
                     if (!vTag.Contains(alphaToAdd))
-                    {
-                        vTag.Add(alphaToAdd); //We either add the backedup alpha, or the best possible from V. Perhaps needs to be changed to SET
-                    }
+                        vTag.Add(alphaToAdd);
                    
                 }
 
+                /**
                 //We estimate how the alpha vectors set was changed
                 double diff = estimateDiff(m_lVectors, vTag, beliefStates);
-                
-
                 Console.WriteLine(diff);
 
                 //The difference between the current set, and the previous is less than epsilon
                 //We finish the update algorithm
-                if (diff < EPSILON)
-                    break;
-                Console.WriteLine("Diff in current PERSEUS iteration is:");
+                //if (diff < EPSILON)
+                //   break;
+                **/
+
                 Console.WriteLine("Iterations left {0}", iterationsLeft);
                 m_lVectors = vTag;
                 iterationsLeft--;
             }
         }
 
+        /**
+        // Calculate the convergence criteria between two alpha vectors sets w.r.t the beliefStates set, as stated in the article
         private double estimateDiff(List<AlphaVector> s1, List<AlphaVector> s2, List<BeliefState> beliefStates)
         {
             double maxDiff = Double.NegativeInfinity;
@@ -396,23 +326,7 @@ namespace POMDP
             }
             return maxDiff;
         }
+        **/
 
-        private List<BeliefState> generateInitialBS(int numToGenerate)
-        {
-            List<BeliefState> res = new List<BeliefState>();
-            BeliefState curBeliefState = m_dDomain.InitialBelief;
-            Action[] actionsArray = m_dDomain.Actions.Cast<Action>().ToArray();
-            int numOfActions = actionsArray.Count();
-
-            while (res.Count() < numToGenerate)
-            {
-                int actionIndex = RandomGenerator.Next(numOfActions);
-                Action curAction = actionsArray[actionIndex];
-                Observation curObs = curBeliefState.sampleState().Apply(curAction).RandomObservation(curAction);
-                curBeliefState = curBeliefState.Next(curAction, curObs);
-                res.Add(curBeliefState);
-            }
-            return res;
-        }
     }
 }

@@ -23,6 +23,7 @@ namespace POMDP
                     m_dValues[s] = value;
             }
         }
+
         public IEnumerable<KeyValuePair<State, double>> Values
         {
             get
@@ -42,11 +43,13 @@ namespace POMDP
             Action = a;
             m_dValues = new Dictionary<State, double>();
         }
+
         public AlphaVector(AlphaVector av)
         {
             Action = av.Action;
             m_dValues = new Dictionary<State, double>(av.m_dValues);
         }
+
         public static AlphaVector operator +(AlphaVector av1, AlphaVector av2)
         {
             AlphaVector avNew = new AlphaVector(av1);
@@ -58,6 +61,7 @@ namespace POMDP
             }
             return avNew;
         }
+
         public static AlphaVector operator *(AlphaVector av, double dScalar)
         {
             AlphaVector avNew = new AlphaVector(av.Action);
@@ -75,6 +79,7 @@ namespace POMDP
                 dSum += p.Value * bs[p.Key];
             return dSum;
         }
+
         public override bool Equals(object obj)
         {
             if (obj is AlphaVector)
@@ -94,6 +99,7 @@ namespace POMDP
             }
             return false;
         }
+
         public override int GetHashCode()
         {
             int iSum = 0;
@@ -101,5 +107,6 @@ namespace POMDP
                 iSum += (int)(p.Value * 100);
             return iSum;
         }
+
     }
 }

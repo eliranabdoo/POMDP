@@ -32,19 +32,19 @@ namespace POMDP
         }
 
 
-        /**
-      * a recursive function performing one trial with stepsLeft steps, we are given a policy p,
-      * stepsLeft, current state state, and current belief state bs
-      * 
-      * a) compute the action for the belief state bs
-      * b) sample the result of applying a to s, obtaining nextState.
-      * c) sample an observation o based on a and nextState
-      * d) compute the new belief state given your old belief state, a, and o.
-      * e) call the function recursively with the same policy p, stepsLeft-1, the new state, and the new
-      * belief state. finally we accumalate the reward.
-      * 
-      * 
-      */
+         /**
+         * a recursive function performing one trial with stepsLeft steps, we are given a policy p,
+         * stepsLeft, current state state, and current belief state bs
+         * 
+         * a) compute the action for the belief state bs
+         * b) sample the result of applying a to s, obtaining nextState.
+         * c) sample an observation o based on a and nextState
+         * d) compute the new belief state given your old belief state, a, and o.
+         * e) call the function recursively with the same policy p, stepsLeft-1, the new state, and the new
+         * belief state. finally we accumalate the reward.
+         * 
+         * 
+         */
         private double calcTrialReward(Policy p, int stepsLeft, State state, BeliefState bs)
         {
             // If we are already in a goal state or no steps are left then the reward is 0
@@ -61,25 +61,10 @@ namespace POMDP
             // We sample an observation based on nextState and a
             Observation o = nextState.RandomObservation(a);
 
-            // Updating the reward, calling the function recursively so we continue the "forward search" to 
-            // goal state
+            // Updating the reward, calling the function recursively so we continue the "forward search" to goal state 
             reward += this.DiscountFactor * calcTrialReward(p, stepsLeft-1, nextState, bs.Next(a,o));
             return reward;
         }
 
-        
-
     }
 }
-
-/**
- * this simulates your policy for a number of iterations multiple times, and computes the average reward obtained.
- * To generate a single trial you:
- * 1. Sample a starting state s from the initial belief state.
- * 2. Repeat until goal is reached
- *  a) compute the action for the belief state a
- *  b) sample the result of applying a to s, obtaining s'.
- *  c) sample an observation o based on a and s'
- *  d) compute the new belief state given your old belief state, a, and o.
- *  e) accumulate the reward
-**/

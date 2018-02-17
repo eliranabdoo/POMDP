@@ -45,7 +45,7 @@ namespace POMDP
         {
             BeliefState bsNext = new BeliefState(m_dDomain); //Represents the new belief state b_o_s
 
-            double normalizing_factor = 0;
+            double normalizing_factor = 0; //We will divide our resulted belief state by this factor, instead of calculating Pr(o|a,b)
 
             HashSet<State> reachableStates = new HashSet<State>();
 
@@ -60,10 +60,8 @@ namespace POMDP
                     foreach (State s in entry.Key.Successors(a))
                     {
                         reachableStates.Add(s);
-                        // We add a new state possibility to bsNext, we initialize its value 
-                        // to SUM(Tr(entry.key,a,s)) over entries (It is a part of the calculation).
-                        // this loop calculates this sum for every entry, for each possible neighbor of 
-                        // entry.key it adds the appropriate value to the sum by the function AddBelief
+                        // We optimize the calculation by adding the weighted transition value as we build the reachableStates Set
+                        // Instead of first calculating the set and only then finding all its ancenstors and perform the calculation
                         bsNext.AddBelief(s, entry.Value * entry.Key.TransitionProbability(a, s));
                     }
 
@@ -84,13 +82,11 @@ namespace POMDP
             }
 
             foreach(State s in reachableStates)
-                bsNext[s] /= normalizing_factor; // We divide the whole probs vector by the sum of its elements
+                bsNext[s] /= normalizing_factor;
 
             Debug.Assert(bsNext.Validate());
             return bsNext;
         }
-
-       
 
         public override string ToString()
         {
@@ -137,7 +133,6 @@ namespace POMDP
 
         /**
         * Samples a State from the belief state distribution and returns it
-        * 
         */
         public State sampleState()
         {
@@ -154,8 +149,8 @@ namespace POMDP
                 if (dRnd <= 0) // the sum reached dRnd
                     return sd.Key;
             }
-            Console.WriteLine("Got into a bad line"); // REMOVE
             return Beliefs(0).Last().Key; // shouldn't get here...
         }
+
     }
 }
